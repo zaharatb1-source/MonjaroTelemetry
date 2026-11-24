@@ -205,63 +205,39 @@ class Monjaro3DSceneView @JvmOverloads constructor(
         private lateinit var roadGridBuffer: FloatBuffer
         private var roadLineCount = 0
 
-        private val vertexShaderCode =
-            "uniform mat4 uMVPMatrix;
-" +
-            "uniform mat4 uModelMatrix;
-" +
-            "attribute vec3 aPosition;
-" +
-            "attribute vec3 aNormal;
-" +
-            "varying vec3 vNormal;
-" +
-            "varying vec3 vWorldPos;
-" +
-            "void main() {
-" +
-            "  gl_Position = uMVPMatrix * vec4(aPosition, 1.0);
-" +
-            "  vNormal = normalize(mat3(uModelMatrix) * aNormal);
-" +
-            "  vWorldPos = vec3(uModelMatrix * vec4(aPosition, 1.0));
-" +
-            "}"
+        private val vertexShaderCode = """
+            uniform mat4 uMVPMatrix;
+            uniform mat4 uModelMatrix;
+            attribute vec3 aPosition;
+            attribute vec3 aNormal;
+            varying vec3 vNormal;
+            varying vec3 vWorldPos;
+            void main() {
+                gl_Position = uMVPMatrix * vec4(aPosition, 1.0);
+                vNormal = normalize(mat3(uModelMatrix) * aNormal);
+                vWorldPos = vec3(uModelMatrix * vec4(aPosition, 1.0));
+            }
+        """.trimIndent()
 
-        private val fragmentShaderCode =
-            "precision mediump float;
-" +
-            "uniform vec4 uColor;
-" +
-            "uniform vec3 uLightDir;
-" +
-            "uniform float uMetallic;
-" +
-            "varying vec3 vNormal;
-" +
-            "varying vec3 vWorldPos;
-" +
-            "void main() {
-" +
-            "  vec3 n = normalize(vNormal);
-" +
-            "  vec3 l = normalize(uLightDir);
-" +
-            "  float diff = max(dot(n, l), 0.18);
-" +
-            "  vec3 viewDir = normalize(vec3(0.0, 2.5, 5.0) - vWorldPos);
-" +
-            "  vec3 halfDir = normalize(l + viewDir);
-" +
-            "  float spec = pow(max(dot(n, halfDir), 0.0), 32.0) * uMetallic;
-" +
-            "  float rim = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0) * 0.35 * uMetallic;
-" +
-            "  vec3 finalRgb = uColor.rgb * diff + vec3(spec + rim);
-" +
-            "  gl_FragColor = vec4(finalRgb, uColor.a);
-" +
-            "}"
+        private val fragmentShaderCode = """
+            precision mediump float;
+            uniform vec4 uColor;
+            uniform vec3 uLightDir;
+            uniform float uMetallic;
+            varying vec3 vNormal;
+            varying vec3 vWorldPos;
+            void main() {
+                vec3 n = normalize(vNormal);
+                vec3 l = normalize(uLightDir);
+                float diff = max(dot(n, l), 0.18);
+                vec3 viewDir = normalize(vec3(0.0, 2.5, 5.0) - vWorldPos);
+                vec3 halfDir = normalize(l + viewDir);
+                float spec = pow(max(dot(n, halfDir), 0.0), 32.0) * uMetallic;
+                float rim = pow(1.0 - max(dot(n, viewDir), 0.0), 3.0) * 0.35 * uMetallic;
+                vec3 finalRgb = uColor.rgb * diff + vec3(spec + rim);
+                gl_FragColor = vec4(finalRgb, uColor.a);
+            }
+        """.trimIndent()
 
         override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
             GLES20.glClearColor(0.024f, 0.032f, 0.052f, 1.0f)
