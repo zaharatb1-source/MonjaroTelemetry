@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.MonjaroTelemetry" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="android:windowBackground">#080A0F</item>
-        <item name="android:statusBarColor">#080A0F</item>
-        <item name="android:navigationBarColor">#080A0F</item>
+        <item name="android:windowBackground">#06080D</item>
+        <item name="android:statusBarColor">#06080D</item>
+        <item name="android:navigationBarColor">#06080D</item>
     </style>
 </resources>

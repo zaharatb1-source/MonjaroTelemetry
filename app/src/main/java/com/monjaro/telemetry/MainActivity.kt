@@ -9,17 +9,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var carCanvas: NfsCarCanvasView
+    private lateinit var carScene3D: Monjaro3DSceneView
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: SensorCardAdapter
     private var canProvider: CanDataProvider? = null
@@ -64,38 +64,33 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // Left 54%: Need For Speed Animated Car & Speed/Boost Arena
-        carCanvas = NfsCarCanvasView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.18f)
+        carScene3D = Monjaro3DSceneView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.22f)
         }
-        root.addView(carCanvas)
+        root.addView(carScene3D)
 
-        // Right 46%: Control Bar + Customizable Sensor Cards Grid
         val rightPane = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16, 16, 20, 16)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.0f)
         }
 
-        // Top Toolbar (Overlay toggle, Demo toggle, Sensor Filter button)
         val topBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, 0, 0, 12)
         }
 
-        val btnOverlay = createNeonButton("Мини-оверлей") {
-            toggleOverlay()
-        }
+        val btnCam = createNeonButton("Камера 360°") { carScene3D.resetCamera() }
+        val btnOverlay = createNeonButton("Мини-оверлей") { toggleOverlay() }
         val btnDemo = createNeonButton(if (TelemetryPrefs.isDemoEnabled(this)) "Демо: ВКЛ" else "Демо: ВЫКЛ") { btn ->
             val next = !TelemetryPrefs.isDemoEnabled(this)
             TelemetryPrefs.setDemoEnabled(this, next)
             btn.text = if (next) "Демо: ВКЛ" else "Демо: ВЫКЛ"
         }
-        val btnFilter = createNeonButton("Датчики ⚙") {
-            showSensorToggleDialog()
-        }
+        val btnFilter = createNeonButton("Датчики ⚙") { showSensorToggleDialog() }
 
+        topBar.addView(btnCam)
         topBar.addView(btnOverlay)
         topBar.addView(btnDemo)
         topBar.addView(btnFilter)
@@ -103,6 +98,7 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView = RecyclerView(this).apply {
             layoutManager = GridLayoutManager(this@MainActivity, 2)
+            itemAnimator = null
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -116,18 +112,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(root)
 
         canProvider = CanDataProvider(this) { state ->
-            carCanvas.updateState(state)
+            carScene3D.updateState(state)
             updateCards(state)
         }
     }
 
     override fun onResume() {
         super.onResume()
+        carScene3D.onHostResume()
         canProvider?.start()
     }
 
     override fun onPause() {
         super.onPause()
+        carScene3D.onHostPause()
         canProvider?.stop()
     }
 
@@ -140,15 +138,15 @@ class MainActivity : AppCompatActivity() {
         return Button(this).apply {
             text = label
             setTextColor(Color.WHITE)
-            textSize = 12f
+            textSize = 11.5f
             isAllCaps = false
             background = bg
-            setPadding(18, 8, 18, 8)
+            setPadding(14, 8, 14, 8)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            lp.marginEnd = 10
+            lp.marginEnd = 8
             layoutParams = lp
             setOnClickListener { onClick(this) }
         }
@@ -196,17 +194,17 @@ class MainActivity : AppCompatActivity() {
                 "coolant" -> "${s.coolantTemp.toInt()}" to s.coolantTemp
                 "trans" -> "${s.transOilTemp.toInt()}" to s.transOilTemp
                 "oil" -> "${s.engineOilTemp.toInt()}" to s.engineOilTemp
-                "boost" -> String.format("%+.2f", s.boostBar) to s.boostBar
-                "volt" -> String.format("%.1f", s.batteryVolt) to s.batteryVolt
+                "boost" -> String.format(Locale.US, "%+.2f", s.boostBar) to s.boostBar
+                "volt" -> String.format(Locale.US, "%.1f", s.batteryVolt) to s.batteryVolt
                 "intake" -> "${s.intakeAirTemp.toInt()}" to s.intakeAirTemp
                 "ambient" -> "${s.ambientTemp.toInt()}" to s.ambientTemp
                 "throttle" -> "${s.throttlePct.toInt()}" to s.throttlePct
                 "brake" -> "${s.brakePct.toInt()}" to s.brakePct
                 "steer" -> "${s.steeringAngle.toInt()}" to s.steeringAngle
-                "tpms_fl" -> String.format("%.1f", s.tpmsFL) to s.tpmsFL
-                "tpms_fr" -> String.format("%.1f", s.tpmsFR) to s.tpmsFR
-                "tpms_rl" -> String.format("%.1f", s.tpmsRL) to s.tpmsRL
-                "tpms_rr" -> String.format("%.1f", s.tpmsRR) to s.tpmsRR
+                "tpms_fl" -> String.format(Locale.US, "%.1f", s.tpmsFL) to s.tpmsFL
+                "tpms_fr" -> String.format(Locale.US, "%.1f", s.tpmsFR) to s.tpmsFR
+                "tpms_rl" -> String.format(Locale.US, "%.1f", s.tpmsRL) to s.tpmsRL
+                "tpms_rr" -> String.format(Locale.US, "%.1f", s.tpmsRR) to s.tpmsRR
                 "fuel" -> "${s.fuelLevelPct.toInt()}" to s.fuelLevelPct
                 else -> "--" to 0f
             }
@@ -275,8 +273,8 @@ class MainActivity : AppCompatActivity() {
             holder.valTv.text = "${item.value} ${item.unit}"
 
             val color = when {
-                item.maxWarn != null && item.rawFloat > item.maxWarn -> Color.parseColor("#FF2A54") // Overheat/High
-                item.minWarn != null && item.rawFloat < item.minWarn -> Color.parseColor("#38BDF8") // Cold/Low
+                item.maxWarn != null && item.rawFloat > item.maxWarn -> Color.parseColor("#FF2A54")
+                item.minWarn != null && item.rawFloat < item.minWarn -> Color.parseColor("#38BDF8")
                 else -> Color.WHITE
             }
             holder.valTv.setTextColor(color)

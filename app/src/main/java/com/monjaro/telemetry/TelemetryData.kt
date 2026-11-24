@@ -17,7 +17,7 @@ data class CarState(
     var speedKmh: Float = 0f,
     var rpm: Float = 800f,
     var gear: String = "P",
-    var driveMode: String = "COMFORT", // COMFORT, SPORT, ECO, OFFROAD
+    var driveMode: String = "COMFORT",
     var coolantTemp: Float = 88f,
     var transOilTemp: Float = 76f,
     var engineOilTemp: Float = 94f,

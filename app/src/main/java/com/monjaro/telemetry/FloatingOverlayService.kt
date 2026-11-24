@@ -6,14 +6,13 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.util.Locale
 
 class FloatingOverlayService : Service() {
 
@@ -42,7 +41,7 @@ class FloatingOverlayService : Service() {
         nm.createNotificationChannel(channel)
 
         val notification = Notification.Builder(this, channelId)
-            .setContentTitle("Monjaro Telemetry")
+            .setContentTitle("Monjaro 3D Telemetry")
             .setContentText("Оверлей телеметрии активен")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .build()
@@ -84,7 +83,6 @@ class FloatingOverlayService : Service() {
             y = 24
         }
 
-        // Draggable support
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
@@ -102,39 +100,37 @@ class FloatingOverlayService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     params.x = initialX + (event.rawX - initialTouchX).toInt()
                     params.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager?.updateViewLayout(overlayView, params)
+                    try {
+                        windowManager?.updateViewLayout(overlayView, params)
+                    } catch (_: Exception) {}
                     true
                 }
                 else -> false
             }
         }
 
-        windowManager?.addView(overlayView, params)
+        try {
+            windowManager?.addView(overlayView, params)
+        } catch (_: Exception) {}
     }
 
     private fun updateOverlayText(s: CarState) {
         val parts = mutableListOf<String>()
-        if (TelemetryPrefs.isItemEnabled(this, "coolant")) {
-            parts.add("ОЖ ${s.coolantTemp.toInt()}°C")
-        }
-        if (TelemetryPrefs.isItemEnabled(this, "trans")) {
-            parts.add("АКПП ${s.transOilTemp.toInt()}°C")
-        }
-        if (TelemetryPrefs.isItemEnabled(this, "oil")) {
-            parts.add("Масло ${s.engineOilTemp.toInt()}°C")
-        }
-        if (TelemetryPrefs.isItemEnabled(this, "boost")) {
-            parts.add(String.format("%+.2f Bar", s.boostBar))
-        }
-        if (TelemetryPrefs.isItemEnabled(this, "volt")) {
-            parts.add(String.format("%.1fV", s.batteryVolt))
-        }
+        if (TelemetryPrefs.isItemEnabled(this, "coolant")) parts.add("ОЖ ${s.coolantTemp.toInt()}°C")
+        if (TelemetryPrefs.isItemEnabled(this, "trans")) parts.add("АКПП ${s.transOilTemp.toInt()}°C")
+        if (TelemetryPrefs.isItemEnabled(this, "oil")) parts.add("Масло ${s.engineOilTemp.toInt()}°C")
+        if (TelemetryPrefs.isItemEnabled(this, "boost")) parts.add(String.format(Locale.US, "%+.2f Bar", s.boostBar))
+        if (TelemetryPrefs.isItemEnabled(this, "volt")) parts.add(String.format(Locale.US, "%.1fV", s.batteryVolt))
         infoText?.text = if (parts.isEmpty()) "Monjaro Telemetry" else parts.joinToString("  |  ")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         canProvider?.stop()
-        overlayView?.let { windowManager?.removeView(it) }
+        try {
+            if (overlayView?.isAttachedToWindow == true) {
+                windowManager?.removeView(overlayView)
+            }
+        } catch (_: Exception) {}
     }
 }
