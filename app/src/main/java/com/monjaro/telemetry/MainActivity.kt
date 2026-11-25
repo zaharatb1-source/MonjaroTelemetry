@@ -89,11 +89,13 @@ class MainActivity : AppCompatActivity() {
             btn.text = if (next) "Демо: ВКЛ" else "Демо: ВЫКЛ"
         }
         val btnFilter = createNeonButton("Датчики ⚙") { showSensorToggleDialog() }
+        val btnLog = createNeonButton("CAN Лог") { showVhalDebugDialog() }
 
         topBar.addView(btnCam)
         topBar.addView(btnOverlay)
         topBar.addView(btnDemo)
         topBar.addView(btnFilter)
+        topBar.addView(btnLog)
         rightPane.addView(topBar)
 
         recyclerView = RecyclerView(this).apply {
@@ -141,12 +143,12 @@ class MainActivity : AppCompatActivity() {
             textSize = 11.5f
             isAllCaps = false
             background = bg
-            setPadding(14, 8, 14, 8)
+            setPadding(12, 8, 12, 8)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            lp.marginEnd = 8
+            lp.marginEnd = 6
             layoutParams = lp
             setOnClickListener { onClick(this) }
         }
@@ -183,6 +185,24 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("Готово") { dialog, _ ->
                 dialog.dismiss()
             }
+            .show()
+    }
+
+    private fun showVhalDebugDialog() {
+        val text = canProvider?.lastRawVhalDump ?: "Нет данных"
+        val scroll = ScrollView(this)
+        val tv = TextView(this).apply {
+            this.text = text
+            textSize = 11f
+            setTextColor(Color.WHITE)
+            setPadding(24, 16, 24, 16)
+            setTextIsSelectable(true)
+        }
+        scroll.addView(tv)
+        AlertDialog.Builder(this)
+            .setTitle("Сырые сигналы CAN / VHAL (Root)")
+            .setView(scroll)
+            .setPositiveButton("Закрыть", null)
             .show()
     }
 

@@ -11,8 +11,8 @@ android {
         applicationId "com.monjaro.telemetry"
         minSdk 28
         targetSdk 33
-        versionCode 4
-        versionName "4.0-3D"
+        versionCode 11
+        versionName "11.0-Final3D"
     }
 
     buildTypes {
