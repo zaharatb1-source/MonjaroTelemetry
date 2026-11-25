@@ -124,20 +124,20 @@ class Monjaro3DSceneView @JvmOverloads constructor(
 
             textPaint.textSize = h * 0.042f
             textPaint.color = acc
-            canvas.drawText("GEELY MONJARO 3D  •  \${state.driveMode}", w * 0.5f, h * 0.08f, textPaint)
+            canvas.drawText("GEELY MONJARO 3D  •  ${state.driveMode}", w * 0.5f, h * 0.08f, textPaint)
 
             subPaint.textSize = h * 0.022f
-            subPaint.color = if (state.connectionStatus.contains("ОНЛАЙН")) Color.parseColor("#00E676") else Color.parseColor("#94A3B8")
-            canvas.drawText("\${state.connectionStatus}  •  Свайп 360°", w * 0.5f, h * 0.12f, subPaint)
+            subPaint.color = if (state.connectionStatus.contains("ROOT (uid=0)") || state.connectionStatus.contains("ROOT CAN") || state.connectionStatus.contains("ДЕМО")) Color.parseColor("#00E676") else Color.parseColor("#F59E0B")
+            canvas.drawText("${state.connectionStatus}  •  Свайп 360°", w * 0.5f, h * 0.12f, subPaint)
 
             drawArcGauge(
                 canvas, w * 0.16f, h * 0.80f, min(w, h) * 0.16f,
-                state.speedKmh / 240f, "\${state.speedKmh.toInt()}", "КМ/Ч • \${state.gear}", acc
+                state.speedKmh / 240f, "${state.speedKmh.toInt()}", "КМ/Ч • ${state.gear}", acc
             )
             drawArcGauge(
                 canvas, w * 0.84f, h * 0.80f, min(w, h) * 0.16f,
                 ((state.boostBar + 0.8f) / 2.6f).coerceIn(0f, 1f),
-                String.format(Locale.US, "%+.2f", state.boostBar), "BAR • \${state.rpm.toInt()} RPM",
+                String.format(Locale.US, "%+.2f", state.boostBar), "BAR • ${state.rpm.toInt()} RPM",
                 if (state.boostBar > 1.0f) Color.parseColor("#FF2A54") else acc
             )
 
@@ -226,6 +226,8 @@ class Monjaro3DSceneView @JvmOverloads constructor(
                 vGroup = aGroup;
                 if (aGroup > 4.5 && aGroup < 5.5) {
                     vColor = aColor * (1.0 + uBrakeBoost);
+                } else if (aGroup > 5.5) {
+                    vColor = aColor * 1.35;
                 } else {
                     vColor = aColor;
                 }
@@ -248,6 +250,10 @@ class Monjaro3DSceneView @JvmOverloads constructor(
                     fragColor = vec4(vColor, 0.55);
                     return;
                 }
+                if (vGroup > 5.5) {
+                    fragColor = vec4(clamp(vColor, 0.0, 1.0), 1.0);
+                    return;
+                }
                 vec3 n = normalize(vNormal);
                 if (!gl_FrontFacing) n = -n;
                 vec3 l = normalize(uLightDir);
@@ -258,7 +264,6 @@ class Monjaro3DSceneView @JvmOverloads constructor(
                 vec3 r = reflect(-v, n);
                 float envBand = smoothstep(-0.3, 0.9, r.y);
                 vec3 envColor = mix(vec3(0.08, 0.11, 0.18), vec3(0.72, 0.78, 0.86), envBand);
-                // Studio softbox reflection strip across hood, roof & door flanks
                 float softbox = smoothstep(0.86, 0.98, abs(r.x + r.y * 0.65));
                 vec3 h = normalize(l + v);
                 float spec = pow(max(dot(n, h), 0.0), 48.0);
@@ -349,7 +354,7 @@ class Monjaro3DSceneView @JvmOverloads constructor(
                     indexCount = iCount
                 }
             } catch (e: Exception) {
-                Log.e("Monjaro3D", "Failed to upload Q16 GPU VBO: \${e.message}")
+                Log.e("Monjaro3D", "Failed to upload Q16 GPU VBO: ${e.message}")
             }
         }
 

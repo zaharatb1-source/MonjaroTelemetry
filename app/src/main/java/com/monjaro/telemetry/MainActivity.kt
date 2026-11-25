@@ -81,6 +81,10 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, 12)
         }
 
+        val btnRoot = createNeonButton("Запросить Root") {
+            canProvider?.requestRootNow()
+            Toast.makeText(this, "Запрос Root (su) отправлен", Toast.LENGTH_SHORT).show()
+        }
         val btnCam = createNeonButton("Камера 360°") { carScene3D.resetCamera() }
         val btnOverlay = createNeonButton("Мини-оверлей") { toggleOverlay() }
         val btnDemo = createNeonButton(if (TelemetryPrefs.isDemoEnabled(this)) "Демо: ВКЛ" else "Демо: ВЫКЛ") { btn ->
@@ -91,6 +95,7 @@ class MainActivity : AppCompatActivity() {
         val btnFilter = createNeonButton("Датчики ⚙") { showSensorToggleDialog() }
         val btnLog = createNeonButton("CAN Лог") { showVhalDebugDialog() }
 
+        topBar.addView(btnRoot)
         topBar.addView(btnCam)
         topBar.addView(btnOverlay)
         topBar.addView(btnDemo)
@@ -140,15 +145,15 @@ class MainActivity : AppCompatActivity() {
         return Button(this).apply {
             text = label
             setTextColor(Color.WHITE)
-            textSize = 11.5f
+            textSize = 11f
             isAllCaps = false
             background = bg
-            setPadding(12, 8, 12, 8)
+            setPadding(10, 8, 10, 8)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            lp.marginEnd = 6
+            lp.marginEnd = 5
             layoutParams = lp
             setOnClickListener { onClick(this) }
         }

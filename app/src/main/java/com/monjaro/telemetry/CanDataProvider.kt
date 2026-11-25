@@ -27,7 +27,7 @@ class CanDataProvider(
     private var suProcess: Process? = null
     private var suOut: DataOutputStream? = null
     private var suIn: BufferedReader? = null
-    private var rootGranted = false
+    @Volatile var rootGranted = false
 
     companion object {
         private const val TAG = "MonjaroRootVhal"
@@ -38,6 +38,11 @@ class CanDataProvider(
         private val NAMED_PROP_PATTERN = Pattern.compile(
             "([A-Z0-9_]{6,})\\s*[:=]\\s*\\[?([+-]?[0-9]+(?:\\.[0-9]+)?)"
         )
+    }
+
+    fun requestRootNow() {
+        rootGranted = false
+        ioExecutor.execute { initRootShell() }
     }
 
     fun start() {
@@ -57,7 +62,7 @@ class CanDataProvider(
                 val snapshot = state.copy()
                 mainHandler.post { onUpdate(snapshot) }
                 try {
-                    Thread.sleep(200)
+                    Thread.sleep(250)
                 } catch (_: InterruptedException) {
                     break
                 }
@@ -77,8 +82,13 @@ class CanDataProvider(
         suIn = null
     }
 
-    private fun initRootShell() {
+    fun initRootShell() {
         try {
+            try {
+                suOut?.writeBytes("exit\n")
+                suOut?.flush()
+                suProcess?.destroy()
+            } catch (_: Exception) {}
             val p = Runtime.getRuntime().exec("su")
             val out = DataOutputStream(p.outputStream)
             val inp = BufferedReader(InputStreamReader(p.inputStream))
@@ -90,31 +100,18 @@ class CanDataProvider(
                 suProcess = p
                 suOut = out
                 suIn = inp
-                state.connectionStatus = "ROOT CAN: АКТИВЕН"
-
-                val pkg = context.packageName
-                val perms = listOf(
-                    "android.car.permission.CAR_INFO",
-                    "android.car.permission.CAR_SPEED",
-                    "android.car.permission.CAR_ENGINE_DETAILED",
-                    "android.car.permission.CAR_TIRES",
-                    "android.car.permission.CAR_POWERTRAIN",
-                    "android.car.permission.READ_CAR_DISPLAY_UNITS",
-                    "android.car.permission.CAR_EXTERIOR_ENVIRONMENT",
-                    "android.car.permission.CAR_ENERGY",
-                    "android.car.permission.CAR_DYNAMICS_STATE"
-                )
-                for (perm in perms) {
-                    out.writeBytes("pm grant \$pkg \$perm 2>/dev/null\n")
-                }
-                out.flush()
+                state.connectionStatus = "ROOT (uid=0)"
             } else {
-                state.connectionStatus = "НЕТ ROOT ДОСТУПА"
+                rootGranted = false
+                state.connectionStatus = "ROOT НЕ ВЫДАН ($idLine)"
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Root init error: \${e.message}")
-            state.connectionStatus = "ОШИБКА ROOT: \${e.message}"
+            rootGranted = false
+            Log.e(TAG, "Root init error: ${e.message}")
+            state.connectionStatus = "ОШИБКА SU: ${e.message}"
         }
+        val snap = state.copy()
+        mainHandler.post { onUpdate(snap) }
     }
 
     private fun execSuCommand(cmd: String): String {
@@ -122,7 +119,7 @@ class CanDataProvider(
         val inp = suIn ?: return ""
         val marker = "___END_VHAL_DUMP___"
         return try {
-            out.writeBytes("\$cmd\necho \$marker\n")
+            out.writeBytes("$cmd\necho $marker\n")
             out.flush()
             val sb = StringBuilder()
             var line: String?
@@ -132,7 +129,8 @@ class CanDataProvider(
             }
             sb.toString()
         } catch (e: Exception) {
-            Log.w(TAG, "su exec failed: \${e.message}")
+            Log.w(TAG, "su exec failed: ${e.message}")
+            rootGranted = false
             ""
         }
     }
@@ -140,22 +138,31 @@ class CanDataProvider(
     private fun pollViaRootShell() {
         if (!rootGranted) {
             initRootShell()
-            return
+            if (!rootGranted) {
+                lastRawVhalDump = "Root (su) не получен. Нажми кнопку 'Запросить Root'."
+                return
+            }
         }
 
-        val dumpAosp = execSuCommand("dumpsys car_service --services CarPropertyService 2>/dev/null | grep -iE 'propId|property|0x11|0x21|COOLANT|SPEED|RPM|TIRE|GEAR|BATTERY|BOOST|OIL|PEDAL|STEER|DRVMOD'")
-        val dumpEcarx = execSuCommand("dumpsys activity service com.ecarx.car 2>/dev/null | grep -iE 'VEH_|CLUSTER_|0x21|0x11|COOLT|BOOST|TIRE|BATT|GEAR|DRVMOD'")
+        val services = execSuCommand("service list 2>/dev/null | grep -iE 'car|ecarx|vhal|vehicle|cluster|body|power|tpms' | head -n 40")
+        val dumpEcarx = execSuCommand("dumpsys activity service com.ecarx.car 2>/dev/null | grep -iE 'VEH_|CLUSTER_|0x21|0x11|COOLT|BOOST|TIRE|BATT|GEAR|DRVMOD|speed|rpm|temp|oil|volt' | head -n 80")
+        val dumpCar = execSuCommand("dumpsys car_service 2>/dev/null | head -n 80")
+        val props = execSuCommand("getprop 2>/dev/null | grep -iE 'car|ecarx|vehicle|vhal|geely|gmc|speed|rpm' | head -n 40")
 
-        val combined = (dumpAosp + "\n" + dumpEcarx).trim()
+        val sb = StringBuilder()
+        if (services.isNotBlank()) sb.append("=== СЕРВИСЫ АВТО ===\n").append(services.trim()).append("\n\n")
+        if (dumpEcarx.isNotBlank()) sb.append("=== ECARX CAR ===\n").append(dumpEcarx.trim()).append("\n\n")
+        if (dumpCar.isNotBlank()) sb.append("=== CAR SERVICE ===\n").append(dumpCar.trim()).append("\n\n")
+        if (props.isNotBlank()) sb.append("=== PROPS ===\n").append(props.trim()).append("\n")
+
+        val combined = sb.toString().trim()
         if (combined.isNotEmpty()) {
             lastRawVhalDump = combined.take(8000)
-            state.connectionStatus = "CAN ШИНА: ОНЛАЙН"
+            state.connectionStatus = "ROOT CAN АКТИВЕН"
             parseVhalText(combined)
         } else {
-            val fallback = execSuCommand("dumpsys car_service 2>/dev/null | head -n 250")
-            lastRawVhalDump = if (fallback.isNotEmpty()) fallback else "Пустой ответ от car_service"
-            state.connectionStatus = "ПОИСК СВОЙСТВ CAN..."
-            parseVhalText(fallback)
+            lastRawVhalDump = "Root активен (uid=0), но сервисы вернули пустой вывод."
+            state.connectionStatus = "ROOT ОК / НЕТ ДАННЫХ"
         }
     }
 
@@ -289,7 +296,7 @@ class CanDataProvider(
         2 -> "R"
         1 -> "N"
         8 -> "D"
-        else -> if (g > 8) "D\${g - 8}" else "P"
+        else -> if (g > 8) "D${g - 8}" else "P"
     }
 
     private fun normalizeBar(raw: Float): Float = when {

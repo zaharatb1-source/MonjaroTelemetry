@@ -1,3 +1,3 @@
-# Monjaro Telemetry — Final 3D Geely Monjaro (`OpenGL ES 3.0`)
+# Monjaro Telemetry v13 — Built from Unpacked GLB (`monjaro_unpacked.glb`)
 
-Сборка с 3D-геометрией Geely Monjaro в 16-битном буфере GPU (`Q16`), отражениями софтбокса на металле, реакцией на крен/тангаж/торможение и опросом CAN-шины через Root (`su`).
+Сборка на базе распакованного `monjaro_unpacked.glb` (`glTF-Transform v4.5.1`) с учётом `KHR_mesh_quantization`, яркими передними фарами/ДХО, кнопкой «Запросить Root», чистой строковой интерполяцией и расширенным дампом сервисов авто/ECARX/VHAL.
